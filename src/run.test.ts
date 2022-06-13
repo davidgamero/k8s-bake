@@ -11,15 +11,15 @@ import { ExecOptions } from "@actions/exec/lib/interfaces";
 
 var mockStatusCode, stdOutMessage, stdErrMessage;
 const mockExecFn = jest.fn().mockImplementation((toolPath, args, options) => {
-    options.listeners.stdout(!stdOutMessage ? '' : stdOutMessage); 
-    options.listeners.stderr(!stdErrMessage ? '' : stdErrMessage); 
+    options.listeners.stdout(!stdOutMessage ? '' : stdOutMessage);
+    options.listeners.stderr(!stdErrMessage ? '' : stdErrMessage);
     return mockStatusCode;
 })
 jest.mock('@actions/exec/lib/toolrunner', () => {
     return {
         ToolRunner: jest.fn().mockImplementation((toolPath, args, options) => {
             return {
-                exec: () => mockExecFn(toolPath, args, options)  
+                exec: () => mockExecFn(toolPath, args, options)
             }
         })
     }
@@ -29,15 +29,15 @@ describe('Test all functions in run file', () => {
     test('KustomizeRenderEngine() - throw error if kubectl doesn\'t meet required version', async () => {
         jest.spyOn(kubectlUtil, 'getKubectlPath').mockResolvedValue('pathToKubectl');
         const kubectlVersionResponse = {
-                'stdout': JSON.stringify({
+            'stdout': JSON.stringify({
                 "clientVersion": {
-                "major": "0",
-                "minor": "18",
+                    "major": "0",
+                    "minor": "18",
                 }
             })
         };
         jest.spyOn(utils, 'execCommand').mockResolvedValue(kubectlVersionResponse as utils.ExecResult);
-        
+
         await expect((new KustomizeRenderEngine()).bake(false)).rejects.toThrow('kubectl client version equal to v1.14 or higher is required to use kustomize features');
         expect(kubectlUtil.getKubectlPath).toBeCalled();
         expect(utils.execCommand).toBeCalledWith('pathToKubectl', ['version', '--client=true', '-o', 'json']);
@@ -46,15 +46,15 @@ describe('Test all functions in run file', () => {
     test('KustomizeRenderEngine() - validate kubetl and bake using kustomize', async () => {
         jest.spyOn(kubectlUtil, 'getKubectlPath').mockResolvedValue('pathToKubectl');
         const kubectlVersionResponse = {
-                'stdout': JSON.stringify({
+            'stdout': JSON.stringify({
                 "clientVersion": {
-                "major": "1",
-                "minor": "18",
+                    "major": "1",
+                    "minor": "18",
                 }
             })
         };
         const kustomizeResponse = {
-            'stdout': 'kustomizeOutput'  
+            'stdout': 'kustomizeOutput'
         };
         jest.spyOn(utils, 'execCommand').mockResolvedValueOnce(kubectlVersionResponse as utils.ExecResult).mockResolvedValueOnce(kustomizeResponse as utils.ExecResult);
         jest.spyOn(core, 'getInput').mockReturnValue('pathToKustomization');
@@ -65,7 +65,7 @@ describe('Test all functions in run file', () => {
         jest.spyOn(core, 'debug').mockImplementation();
         jest.spyOn(core, 'setOutput').mockImplementation();
         jest.spyOn(console, 'log').mockImplementation();
-        
+
         expect(await (new KustomizeRenderEngine()).bake(true)).toBeUndefined();
         expect(kubectlUtil.getKubectlPath).toBeCalled();
         expect(utils.execCommand).toBeCalledWith('pathToKubectl', ['version', '--client=true', '-o', 'json']);
@@ -98,7 +98,7 @@ describe('Test all functions in run file', () => {
 
         expect(await (new KomposeRenderEngine()).bake(true)).toBeUndefined();
         expect(komposeUtil.getKomposePath).toBeCalled();
-        expect(utils.execCommand).toBeCalledWith('pathToKompose', ['convert', '-f', 'pathToDockerCompose', '-o', path.join('tempDir', 'baked-template-12345678.yaml')], {"silent": true});
+        expect(utils.execCommand).toBeCalledWith('pathToKompose', ['convert', '-f', 'pathToDockerCompose', '-o', path.join('tempDir', 'baked-template-12345678.yaml')], { "silent": true });
         expect(core.setOutput).toBeCalledWith('manifestsBundle', path.join('tempDir', 'baked-template-12345678.yaml'));
     });
 
@@ -130,16 +130,22 @@ describe('Test all functions in run file', () => {
         jest.spyOn(core, 'setOutput').mockImplementation();
 
         expect(await (new HelmRenderEngine().bake(true))).toBeUndefined();
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['dependency', 'update', 'pathToHelmChart'], {"silent": true});
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['version', '--template', '{{.Version}}'], {"silent": true});
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['init', '--client-only', '--stable-repo-url', 'https://charts.helm.sh/stable'], {"silent": true});
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['dependency', 'update', 'pathToHelmChart'], { "silent": true });
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['version', '--template', '{{.Version}}'], { "silent": true });
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['init', '--client-only', '--stable-repo-url', 'https://charts.helm.sh/stable'], { "silent": true });
         expect(core.setOutput).toBeCalledWith('manifestsBundle', path.join('tempDirPath', 'baked-template-12345678.yaml'));
     });
 
     test('HelmRenderEngine() - single additional argument', async () => {
+        process.env['INPUT_RENDERENGINE'] = 'helm';
+
         jest.spyOn(helmUtil, 'getHelmPath').mockResolvedValue('pathToHelm');
-        jest.spyOn(core, 'getInput').mockReturnValueOnce('pathToHelmChart').mockReturnValueOnce('releaseName');
-        jest.spyOn(core, 'getInput').mockReturnValueOnce('additionalArguments').mockReturnValueOnce('arguments');
+        jest.spyOn(core, 'getInput').mockImplementation((inputName, options) => {
+            if (inputName == "helmChart") return 'pathToHelmChart';
+            if (inputName == "arguments") return 'additionalArguments';
+            if (inputName == "releaseName") return 'releaseName';
+        })
+
         jest.spyOn(console, 'log').mockImplementation();
         mockStatusCode = 0;
         stdOutMessage = 'v2.9.1';
@@ -148,10 +154,13 @@ describe('Test all functions in run file', () => {
         jest.spyOn(utils, 'getCurrentTime').mockReturnValue(12345678);
         jest.spyOn(core, 'setOutput').mockImplementation();
 
-        expect(await (new HelmRenderEngine().bake(true))).toBeDefined();
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['dependency', 'update', 'pathToHelmChart', 'additionalArguments'], {"silent": true});
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['version', '--template', '{{.Version}}'], {"silent": true});
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['init', '--client-only', '--stable-repo-url', 'https://charts.helm.sh/stable'], {"silent": true});
+
+
+        expect(await (new HelmRenderEngine().bake(true))).toBeUndefined();
+
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['dependency', 'update', 'pathToHelmChart'], { "silent": true });
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['version', '--template', '{{.Version}}'], { "silent": true });
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['template', 'additionalArguments', '--name', 'releaseName', 'pathToHelmChart'], { "silent": true });
     });
 
     test('HelmRenderEngine() - multiple additional arguments', async () => {
@@ -166,9 +175,9 @@ describe('Test all functions in run file', () => {
         jest.spyOn(utils, 'getCurrentTime').mockReturnValue(12345678);
         jest.spyOn(core, 'setOutput').mockImplementation();
 
-        expect(await (new HelmRenderEngine().bake(true))).toBeDefined();
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['dependency', 'update', 'pathToHelmChart', 'additional\nArguments'], {"silent": true});
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['version', '--template', '{{.Version}}'], {"silent": true});
-        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['init', '--client-only', '--stable-repo-url', 'https://charts.helm.sh/stable'], {"silent": true});
+        expect(await (new HelmRenderEngine().bake(true))).toBeUndefined();
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['dependency', 'update', 'pathToHelmChart'], { "silent": true });
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['version', '--template', '{{.Version}}'], { "silent": true });
+        expect(utils.execCommand).toBeCalledWith('pathToHelm', ['template', 'additional', 'Arguments', '--name', 'releaseName', 'pathToHelmChart'], { "silent": true });
     });
 });

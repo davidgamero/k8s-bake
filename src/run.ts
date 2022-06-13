@@ -43,7 +43,7 @@ export class HelmRenderEngine extends RenderEngine {
         console.log("Getting helm version..");
         let isV3 = true;
         await this.isHelmV3(helmPath).then((result) => { isV3 = result }).catch(() => { isV3 = false });
-        
+
         try {
             if (!isV3) {
                 await utilities.execCommand(helmPath, ['init', '--client-only', '--stable-repo-url', 'https://charts.helm.sh/stable'], options);
@@ -93,12 +93,12 @@ export class HelmRenderEngine extends RenderEngine {
         const args: string[] = [];
         args.push('template');
 
-        const additionalArgs = core.getInput('arguments', { required: false }) 
+        const additionalArgs = core.getInput('arguments', { required: false })
         if (!!additionalArgs) {
             const argumentArray = additionalArgs.split('\n');
             if (argumentArray.length > 0) {
                 argumentArray.forEach(arg => {
-                    args.push(arg); 
+                    args.push(arg);
                 });
             }
         }
@@ -114,7 +114,7 @@ export class HelmRenderEngine extends RenderEngine {
             }
         }
         args.push(chartPath);
-        
+
         const overrideFilesInput = core.getInput('overrideFiles', { required: false });
         if (!!overrideFilesInput) {
             core.debug("Adding overrides file inputs");
@@ -220,7 +220,7 @@ export async function run() {
     }
 
     let isSilent = core.getInput('silent', { required: false }) === 'true';
-    
+
     try {
         await renderEngine.bake(isSilent);
     }
